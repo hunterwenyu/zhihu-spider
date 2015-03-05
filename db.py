@@ -1,5 +1,5 @@
 from peewee import Model,MySQLDatabase
-
+import pymysql
 db = MySQLDatabase("zhihu_data.db")
 
 
