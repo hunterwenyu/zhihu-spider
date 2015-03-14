@@ -1,6 +1,6 @@
 __author__ = 'wuwy'
 from peewee import *
-from zhihuSpider import db
+import db
 
 
 class User(db.BaseModel):

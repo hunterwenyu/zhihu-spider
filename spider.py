@@ -4,9 +4,10 @@ import requests
 import re
 import os
 import json
-import zhihuSpider.model
+import model
 import urllib
-import zhihuSpider.config
+import config
+import threading
 
 
 class Spider:
@@ -14,16 +15,17 @@ class Spider:
         self.login_url = "http://www.zhihu.com/#signin"
         self.commit_url = "http://www.zhihu.com/login"
 
-        self.login_username = zhihuSpider.config.login_username
-        self.login_password = zhihuSpider.config.login_password
+        self.login_username = config.login_username
+        self.login_password = config.login_password
 
-        self.seed_user = zhihuSpider.config.seed_user_url
+        self.seed_user = config.seed_user_url
 
-        self.layer = zhihuSpider.config.layer
+        self.layer = config.layer
         self.spider = requests.session()
 
     def login(self):
         r = self.spider.get(self.login_url)
+        a = r.text
         _xsrf = re.findall(r"name=\"_xsrf\" value=\"(\w*)\"", str(r.text))[0]
         form_date = {'_xsrf': str(_xsrf), 'email': str(self.login_username), 'password': str(self.login_password),
                      'rememberme': 'y'}
@@ -42,14 +44,14 @@ class Spider:
             date = {'method': 'next', 'params': params, '_xsrf': _xsrf}
             headers = {'Referer': flowers_url, 'Host': 'www.zhihu.com', 'User-Agent': "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:34.0) Gecko/20100101 Firefox/34.0"}
             response = self.spider.post('http://www.zhihu.com/node/ProfileFollowersListV2', data=date, headers=headers)
-            self.json_to_user(response.json()['msg'], True, False)
-            if count > 50: return
+            self.json_to_user(response.json()['msg'], True, True)
+            if count > 25: return
             count += 20
 
     def json_to_user(self, msg, detailed, download):
         list = []
         for u in msg:
-            nu = zhihuSpider.model.User()
+            nu = model.User()
             title_and_url = re.findall(r'<h2.+</h2>', str(u))
             nu.user_name = re.findall(r'title=\"(.+)\">', str(title_and_url))[0]
             nu.url = re.findall(r'href=\"(.+)\" c', str(title_and_url))[0]
@@ -81,10 +83,16 @@ class Spider:
 
                 nu.image_url = re.findall(r'src=\"(.+)\"\nclass=\"zm-profile-header-img zg-avatar-big zm-avatar-editor-preview\"', str(nu_html))[0]
                 if download:
-                    if nu.image_url != "http://pic1.zhimg.com/da8e974dc_l.jpg":
+                    if nu.image_url != "http://pic4.zhimg.com/c3d33c3e1c8c2f518758c93270fb2f03_l.jpg":
                         file_name = str(re.findall(r'com/(.+)', str(nu.image_url))[0])
                         nu.img_file = file_name
-                        urllib.request.urlretrieve(nu.image_url, os.path.expanduser("~/image/"+file_name))
+                        print(nu.image_url)
+                        try:
+                            url = os.path.expanduser("~/image/"+file_name)
+                            spider.get(nu.image_url)
+                            urllib.request.urlretrieve(nu.image_url, url)
+                        except urllib.error.HTTPError:
+                            pass
             list.append(nu)
         return list
 
